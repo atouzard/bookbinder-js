@@ -5,6 +5,7 @@ import { expect, describe, it } from 'vitest';
 import { PDFDocument } from '@cantoo/pdf-lib';
 import { Book } from './book';
 import { schema } from './models/configuration';
+import { mmToPt } from './constants';
 
 describe('Book model', () => {
   // TODO confirm that this is what a newly created book (that is, without any settings changed) should look like; I've copied the result from how it currently works assuming it's working as-intended
@@ -24,6 +25,16 @@ describe('Book model', () => {
     sourcePageCount: null,
     selectedPages: [],
     cropbox: null,
+    inkBounds: null,
+    autoFitResult: null,
+    autoFit: {
+      enabled: false,
+      trim: [mmToPt(165), mmToPt(240)],
+      marginTopBottom: mmToPt(20),
+      extraGutter: 0,
+      dpi: 100,
+      sampleCount: 25,
+    },
     orderedpages: [],
     rearrangedpages: [],
     filelist: [],

@@ -185,3 +185,30 @@ export const PERFECTBOUND_LAYOUTS = {
     rotate: [12, 9, 6, 7, 23, 22, 25, 28, 20, 17, 30, 31, 15, 14, 1, 4],
   },
 };
+
+/** Points per millimetre. 1pt = 1/72 inch, 1 inch = 25.4mm */
+export const PT_PER_MM = 72 / 25.4;
+
+/** @param {number} mm @returns {number} the equivalent in points */
+export const mmToPt = (mm) => mm * PT_PER_MM;
+
+/** @param {number} pt @returns {number} the equivalent in millimetres */
+export const ptToMm = (pt) => pt / PT_PER_MM;
+
+/** @param {number} value @param {'mm'|'pt'|'in'} unit @returns {number} the value in points */
+export function toPt(value, unit) {
+  if (unit === 'pt') return value;
+  if (unit === 'in') return value * 72;
+  return mmToPt(value);
+}
+
+/**
+ * Common finished (post-trim) book block sizes, in millimetres.
+ * These are the size of a page *after* the bound block has been guillotined,
+ * so each one is deliberately smaller than the layout cell it's cut from.
+ */
+export const TRIM_SIZE_PRESETS = {
+  B5_BOOK: { label: 'B5 book - 165 x 240 mm (from a B5 cell)', width: 165, height: 240 },
+  A4_BOOK: { label: 'A4 book - 200 x 270 mm (from an A4 cell)', width: 200, height: 270 },
+  A5_BOOK: { label: 'A5 book - 140 x 200 mm (from an A5 cell)', width: 140, height: 200 },
+};

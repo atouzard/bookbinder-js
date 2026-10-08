@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { PAGE_SIZES } from '../constants';
+import { PAGE_SIZES, TRIM_SIZE_PRESETS, ptToMm } from '../constants';
 import { handleSewingMarksCheckboxState } from './clickHandlers.js';
 
 export function renderPageCount(book) {
@@ -157,13 +157,111 @@ export function renderWacky() {
     document.getElementById('A7_2_16s').checked ||
     document.getElementById('1_3rd').checked;
   console.log('Is a wacky layout? ', isWacky);
-  document
-    .getElementById('book_size')
-    .querySelectorAll('input')
-    .forEach((x) => {
+  ['book_size', 'auto_fit_section'].forEach((id) => {
+    const section = document.getElementById(id);
+    section.querySelectorAll('input').forEach((x) => {
       x.disabled = isWacky;
     });
-  document.getElementById('book_size').style.opacity = isWacky ? 0.3 : 1.0;
+    section.style.opacity = isWacky ? 0.3 : 1.0;
+  });
+}
+
+export function renderTrimSizeOptions() {
+  const list = document.getElementById('trim_size_preset');
+  Object.entries(TRIM_SIZE_PRESETS).forEach(([key, preset]) => {
+    const opt = document.createElement('option');
+    opt.setAttribute('value', key);
+    opt.setAttribute('name', key);
+    opt.innerText = preset.label;
+    list.appendChild(opt);
+  });
+  const custom = document.createElement('option');
+  custom.setAttribute('value', 'CUSTOM');
+  custom.setAttribute('name', 'CUSTOM');
+  custom.innerText = 'Custom';
+  list.appendChild(custom);
+}
+
+/**
+ * Greys out the manual margin inputs while auto-fit owns them, and shows what was
+ * measured and what it worked out to.
+ *
+ * @param { import("../book").Book } book
+ * @param {object} info - the object returned by Book.createpages()
+ */
+export function renderAutoFit(book, info) {
+  const enabled = book.autoFit.enabled;
+  const report = document.getElementById('auto_fit_report');
+  document.getElementById('auto_fit_details').style.display = enabled ? 'block' : 'none';
+
+  // readOnly rather than disabled: a disabled input drops out of the FormData, which
+  // would quietly wipe the user's hand-set margins.
+  [
+    'main_fore_edge_padding_pt',
+    'binding_edge_padding_pt',
+    'top_edge_padding_pt',
+    'bottom_edge_padding_pt',
+  ].forEach((name) => {
+    const el = document.querySelector(`input[name="${name}"]`);
+    el.readOnly = enabled;
+    el.style.opacity = enabled ? 0.6 : 1.0;
+  });
+
+  if (!enabled) {
+    report.innerHTML = '';
+    return;
+  }
+
+  const result = info && info.autoFit;
+  const bounds = info && info.inkBounds;
+
+  if (!bounds) {
+    report.innerHTML = book.inputpdf
+      ? '<span class="flash attention">Could not find any ink in this PDF - auto-fit is inactive.</span>'
+      : 'Load a PDF and its margins will be measured automatically.';
+    return;
+  }
+
+  // The four inputs show what auto-fit derived, so the numbers stay visible (and
+  // survive as a starting point if auto-fit is switched back off).
+  if (result && result.padding) {
+    const p = result.padding;
+    document.querySelector('input[name="main_fore_edge_padding_pt"]').value =
+      p.fore_edge.toFixed(2);
+    document.querySelector('input[name="binding_edge_padding_pt"]').value = p.binding.toFixed(2);
+    document.querySelector('input[name="top_edge_padding_pt"]').value = p.top.toFixed(2);
+    document.querySelector('input[name="bottom_edge_padding_pt"]').value = p.bottom.toFixed(2);
+  }
+
+  const mm = (pt) => `${ptToMm(pt).toFixed(1)} mm`;
+  const box = bounds.box;
+  const sampled = `${bounds.sampled.length} page${bounds.sampled.length === 1 ? '' : 's'}`;
+
+  let html = `<b>Measured content</b><br />
+    ${mm(box.width)} x ${mm(box.height)}, from ${mm(box.x)} left and ${mm(box.y)} up
+    the source page (sampled ${sampled}).<br /><br />`;
+
+  if (result && result.trimMargins) {
+    const t = result.trimMargins;
+    html += `<b>On the trimmed page</b><br />
+      Scale: ${(result.scale * 100).toFixed(1)}%<br />
+      Top: ${mm(t.top)} &nbsp; Bottom: ${mm(t.bottom)}<br />
+      Binding: ${mm(t.binding)} &nbsp; Fore edge: ${mm(t.fore_edge)}<br /><br />`;
+  }
+
+  const warnings = [...bounds.warnings, ...((result && result.warnings) || [])];
+  if (warnings.length > 0) {
+    html += warnings
+      .map((w) => `<div class="flash attention small">${escapeHtml(w)}</div>`)
+      .join('');
+  }
+  report.innerHTML = html;
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.innerText = text;
+  return div.innerHTML;
 }
 
 /** @param { import("../models/configuration").Configuration } configuration */
@@ -201,6 +299,13 @@ export function renderFormFromSettings(configuration) {
     document.querySelector("input[name='cutmarks']").checked = true;
   }
 
+  if (configuration.autoFitEnabled) {
+    document.querySelector("input[name='auto_fit_enabled']").checked = true;
+  }
+  document.getElementById('auto_fit_details').style.display = configuration.autoFitEnabled
+    ? 'block'
+    : 'none';
+
   // Set radio options
   document.querySelector(`input[name="sig_format"][value="${configuration.sigFormat}"]`).checked =
     true;
@@ -233,6 +338,15 @@ export function renderFormFromSettings(configuration) {
   document.querySelector('input[name="fore_edge_padding_pt"]').value =
     configuration.foreEdgePaddingPt;
   document.querySelector('input[name="flyleafs"]').value = configuration.flyleafs;
+  document.querySelector('input[name="trim_size_width"]').value = configuration.trimSizeWidth;
+  document.querySelector('input[name="trim_size_height"]').value = configuration.trimSizeHeight;
+  document.querySelector('input[name="content_margin_top_bottom"]').value =
+    configuration.contentMarginTopBottom;
+  document.querySelector('input[name="extra_binding_margin"]').value =
+    configuration.extraBindingMargin;
+  document.querySelector('input[name="ink_detect_dpi"]').value = configuration.inkDetectDpi;
+  document.querySelector('input[name="ink_detect_sample_count"]').value =
+    configuration.inkDetectSampleCount;
   document.querySelector('input[name="page_range"]').value = configuration.pageRange;
 
   // Set select options
@@ -244,6 +358,8 @@ export function renderFormFromSettings(configuration) {
   document.querySelector('select[name="paper_size"]').value = configuration.paperSize;
   document.querySelector('select[name="paper_size_unit"]').value = configuration.paperSizeUnit;
   document.querySelector('select[name="printer_type"]').value = configuration.printerType;
+  document.querySelector('select[name="trim_size_preset"]').value = configuration.trimSizePreset;
+  document.querySelector('select[name="trim_size_unit"]').value = configuration.trimSizeUnit;
 
   // Set options which are not always present
   if (

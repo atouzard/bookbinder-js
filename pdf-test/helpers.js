@@ -15,13 +15,17 @@ function comparePDF(filename, snapshot) {
   return comparePdfToSnapshot(filename, __dirname, snapshot);
 }
 
-async function generateTestPDF(configuration, filename) {
+async function generateTestPDF(configuration, filename, inkBox) {
   const book = new Book(configuration);
   book.inputpdf = filename;
   const filepath = path.join(__dirname, '/../docs', filename);
   book.input = await readFile(filepath);
   book.currentdoc = await PDFDocument.load(book.input.toString('base64'));
   book.filename = filename;
+  if (inkBox) {
+    // Stand in for detectInkBounds, which needs a canvas to rasterise with.
+    book.inkBounds = { box: inkBox, pageSize: null, sampled: [], perPage: [], warnings: [] };
+  }
   await book.createpages();
   let previewPdf = null;
 
@@ -52,8 +56,8 @@ async function generateTestPDF(configuration, filename) {
 }
 
 export async function runTestCase(caseName) {
-  const { input, config } = testCases[caseName];
-  const file = await generateTestPDF(config, input);
+  const { input, config, inkBox } = testCases[caseName];
+  const file = await generateTestPDF(config, input, inkBox);
   const data = await file.save();
   return comparePDF(Buffer.from(data), `${caseName}.pdf`);
 }

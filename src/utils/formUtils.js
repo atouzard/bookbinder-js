@@ -5,6 +5,7 @@
 import { schema } from '../models/configuration';
 import { clearLocalSettings, getLocalSettings, setLocalSettings } from './localStorageUtils';
 import {
+  renderAutoFit,
   renderFormFromSettings,
   renderInfoBox,
   renderPageCount,
@@ -49,6 +50,16 @@ const fromFormToConfiguration = (form) =>
     paperSizeCustomWidth: form.get('paper_size_custom_width'),
     paperSizeCustomHeight: form.get('paper_size_custom_height'),
 
+    autoFitEnabled: form.has('auto_fit_enabled'),
+    trimSizePreset: form.get('trim_size_preset'),
+    trimSizeUnit: form.get('trim_size_unit'),
+    trimSizeWidth: form.get('trim_size_width'),
+    trimSizeHeight: form.get('trim_size_height'),
+    contentMarginTopBottom: form.get('content_margin_top_bottom'),
+    extraBindingMargin: form.get('extra_binding_margin'),
+    inkDetectDpi: form.get('ink_detect_dpi'),
+    inkDetectSampleCount: form.get('ink_detect_sample_count'),
+
     sewingMarksEnabled: form.has('add_sewing_marks_checkbox'),
     sewingMarkLocation: form.get('sewing_mark_locations'),
     sewingMarksMarginPt: form.get('sewing_marks_margin_pt'),
@@ -84,13 +95,24 @@ export const loadConfiguration = () => {
  * @param { import("../book").Book } book The book to update the form from
  */
 export function updateRenderedForm(book) {
-  book.createpages().then((info) => {
-    updatePageLayoutInfo(info);
-    console.log('... pages created');
-    renderPageCount(book);
-    renderInfoBox(book);
-    renderWacky();
-  });
+  // Measuring rasterises the source, so it only happens once per file - but it has
+  // to finish before the pages are built, since the ink box is what they're cropped to.
+  const measured = book.autoFit.enabled ? book.ensureInkBounds() : Promise.resolve(null);
+
+  return measured
+    .catch((error) => {
+      console.error('Could not measure the source PDF:', error);
+      return null;
+    })
+    .then(() => book.createpages())
+    .then((info) => {
+      updatePageLayoutInfo(info);
+      console.log('... pages created');
+      renderPageCount(book);
+      renderInfoBox(book);
+      renderWacky();
+      renderAutoFit(book, info);
+    });
 }
 
 /**

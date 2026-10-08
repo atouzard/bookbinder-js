@@ -1,0 +1,112 @@
+<section class="section" id="auto_fit_section">
+  <header><h2>Auto-fit to Trimmed Page</h2></header>
+  <p class="small">
+    Measures where the ink actually sits on your source PDF, then works out the four margins above
+    for you, so the body lands centered on the finished page <i>after</i> you trim the bound block.
+    The spine fold can't be trimmed, so all the horizontal waste is placed on the fore edge and the
+    vertical waste is split between head and tail.
+  </p>
+  <label class="mb-1"
+    >Auto-fit content:
+    <input type="checkbox" name="auto_fit_enabled" id="auto_fit_enabled" />
+    <span
+      data-balloon-length="medium"
+      aria-label="Overrides the four margins above with measured values. Also forces page scaling to 'Keep proportional'."
+      data-balloon-pos="up"
+      >ℹ️
+    </span>
+  </label>
+
+  <div id="auto_fit_details">
+    <label for="trim_size_preset"
+      >Finished size after trimming:
+      <select name="trim_size_preset" id="trim_size_preset" class="inline"></select>
+    </label>
+
+    <div class="input-group ml-2 mt-1">
+      <label
+        >Trimmed width:
+        <input
+          type="number"
+          id="trim_size_width"
+          name="trim_size_width"
+          step="any"
+          class="layout_margin_user_input_field inline"
+      /></label>
+      <label
+        >Trimmed height:
+        <input
+          type="number"
+          id="trim_size_height"
+          name="trim_size_height"
+          step="any"
+          class="layout_margin_user_input_field inline"
+      /></label>
+      <label
+        >Units:
+        <select name="trim_size_unit" id="trim_size_unit" class="inline">
+          <option value="mm" selected>mm</option>
+          <option value="pt">points</option>
+          <option value="in">inches</option>
+        </select>
+      </label>
+      <label
+        >Top &amp; bottom margin:
+        <input
+          type="number"
+          id="content_margin_top_bottom"
+          name="content_margin_top_bottom"
+          step="any"
+          class="layout_margin_user_input_field inline"
+      /></label>
+      <label
+        >Extra binding margin:
+        <input
+          type="number"
+          id="extra_binding_margin"
+          name="extra_binding_margin"
+          step="any"
+          class="layout_margin_user_input_field inline"
+        />
+        <span
+          data-balloon-length="medium"
+          aria-label="Shifts the text block away from the spine, for bindings that swallow part of the gutter. Taken off the fore-edge margin, so keep it small."
+          data-balloon-pos="up"
+          >ℹ️
+        </span>
+      </label>
+    </div>
+
+    <details id="ink_detect_details">
+      <summary>Detection settings</summary>
+      <div class="input-group ml-2">
+        <label
+          >Measuring resolution:
+          <input
+            type="number"
+            id="ink_detect_dpi"
+            name="ink_detect_dpi"
+            class="layout_margin_user_input_field inline"
+          />dpi</label
+        >
+        <label
+          >Pages to sample:
+          <input
+            type="number"
+            id="ink_detect_sample_count"
+            name="ink_detect_sample_count"
+            class="layout_margin_user_input_field inline"
+          />
+          <span
+            data-balloon-length="medium"
+            aria-label="Pages are sampled evenly across the document. Use 0 to measure every page - slower, but catches stray wide content."
+            data-balloon-pos="up"
+            >ℹ️
+          </span>
+        </label>
+      </div>
+    </details>
+
+    <div id="auto_fit_report" class="small mt-2"></div>
+  </div>
+</section>

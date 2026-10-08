@@ -11,6 +11,28 @@ A very helpful guide on page size given layout and paper selection has been crea
 Snapshot of the size chart as of 2022-08-11
 ![Snapshot of sizes as of 2022-08-11](/docs/sizes_guide_snapshot_2022_08_11.png)
 
+### Auto-fit to trimmed page
+
+Source PDFs carry their own margins, which makes the four "White Space Manipulation" values a
+guessing game. The **Auto-fit to Trimmed Page** section does the measuring for you: it rasterises a
+sample of pages, finds the outermost extent of anything that prints, and derives the four margins so
+that the body lands centered on the page you'll end up with _after_ trimming the bound block.
+
+Give it the finished size (there are presets, or type your own) and the margin you want above and
+below the text. Because the spine fold can never be trimmed, all the horizontal trim waste is placed
+on the fore edge and the vertical waste is split between head and tail, so the trim box sits hard
+against the binding edge of each layout cell. Note the finished size must be smaller than one layout
+cell -- a 165 x 240 mm block, for instance, comes from a B5 cell, which is a folio of a B4 sheet.
+
+**Extra binding margin** shifts the block away from the spine for bindings that swallow part of the
+gutter. It comes out of the fore-edge margin, so keep it small; the readout shows both margins and
+warns when they get badly lopsided.
+
+Measuring runs in your browser and nothing is uploaded. It only re-runs when you load a new file or
+change the detection settings. Raising the resolution improves the measurement (0.25 mm at the
+default 100 dpi, and the error always rounds outwards, so it will never clip your content) at the
+cost of a slower measurement. Auto-fit doesn't apply to the "wacky small" layouts.
+
 ## Contributing
 
 See the [contributing](/CONTRIBUTING.md) documentation!

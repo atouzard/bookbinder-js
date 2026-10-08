@@ -11,11 +11,13 @@ import {
   handleResetSettingsClick,
   handleSewingMarksCheckboxState,
 } from './utils/clickHandlers.js';
-import { renderPaperSelectOptions } from './utils/renderUtils.js';
+import { renderPaperSelectOptions, renderTrimSizeOptions } from './utils/renderUtils.js';
+import { TRIM_SIZE_PRESETS } from './constants.js';
 
 window.addEventListener('DOMContentLoaded', () => {
   // render dynamic content
   renderPaperSelectOptions();
+  renderTrimSizeOptions();
   const configuration = loadForm();
 
   // grab DOM elements
@@ -27,6 +29,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const inputs = document.querySelectorAll('input, select');
   const sourceRotation = document.getElementById('source_rotation');
   const sewingMarks = document.getElementById('add_sewing_marks_checkbox');
+  const trimSizePreset = document.getElementById('trim_size_preset');
   const sourceRotationExamples = Array.from(
     document.getElementsByClassName('source_rotation_example')
   );
@@ -58,5 +61,15 @@ window.addEventListener('DOMContentLoaded', () => {
   sewingMarks.addEventListener('change', (e) => {
     const willBeEnabled = e.srcElement.checked;
     handleSewingMarksCheckboxState(willBeEnabled);
+  });
+  // Picking a preset fills in the width/height; editing those by hand is what
+  // 'Custom' means, so leave the preset alone from here on.
+  trimSizePreset.addEventListener('change', (e) => {
+    const preset = TRIM_SIZE_PRESETS[e.target.value];
+    if (!preset) return;
+    document.getElementById('trim_size_unit').value = 'mm';
+    document.getElementById('trim_size_width').value = preset.width;
+    document.getElementById('trim_size_height').value = preset.height;
+    handleInputChange(book, bookbinderForm);
   });
 });

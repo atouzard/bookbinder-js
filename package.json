@@ -31,6 +31,7 @@
     "@cantoo/pdf-lib": "^1.21.0",
     "file-saver": "^2.0.5",
     "jszip": "^3.7.1",
+    "pdfjs-dist": "^4.10.38",
     "vite-plugin-html-inject": "^1.1.2",
     "zod": "^3.22.4"
   }

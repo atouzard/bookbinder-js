@@ -6,7 +6,7 @@ import { PDFDocument, PDFEmbeddedPage, degrees } from '@cantoo/pdf-lib';
 import { saveAs } from 'file-saver';
 import { Signatures } from './signatures.js';
 import { WackyImposition } from './wacky_imposition.js';
-import { PAGE_LAYOUTS, PAGE_SIZES } from './constants.js';
+import { PAGE_LAYOUTS, PAGE_SIZES, toPt } from './constants.js';
 import JSZip from 'jszip';
 import { loadConfiguration } from './utils/formUtils.js';
 import {
@@ -17,6 +17,8 @@ import {
   drawSewingMarks,
 } from './utils/drawing.js';
 import { calculateDimensions, calculateLayout } from './utils/layout.js';
+import { computeAutoFitPadding, layoutCellSize } from './utils/autoFit.js';
+import { detectInkBounds } from './utils/inkBounds.js';
 import { parsePageRange } from './utils/pageRange.js';
 import { interleavePages, embedPagesInNewPdf } from './utils/pdf.js';
 
@@ -72,6 +74,11 @@ export class Book {
     this.sourcePageCount = null;
     this.selectedPages = [];
     this.cropbox = null;
+
+    /** @type {import("./utils/inkBounds.js").InkBounds | null} measured content box of the source */
+    this.inkBounds = null;
+    /** @type {import("./utils/autoFit.js").AutoFitResult | null} last auto-fit computation */
+    this.autoFitResult = null;
 
     this.orderedpages = []; //  ordered list of page numbers (consecutive)
     this.rearrangedpages = []; //  reordered list of page numbers (signatures etc.)
@@ -137,6 +144,94 @@ export class Book {
       binding: configuration.bindingEdgePaddingPt,
       fore_edge: configuration.mainForeEdgePaddingPt,
     };
+
+    const unit = configuration.trimSizeUnit;
+    const previous = this.autoFit;
+    this.autoFit = {
+      enabled: configuration.autoFitEnabled,
+      trim: [toPt(configuration.trimSizeWidth, unit), toPt(configuration.trimSizeHeight, unit)],
+      marginTopBottom: toPt(configuration.contentMarginTopBottom, unit),
+      extraGutter: toPt(configuration.extraBindingMargin, unit),
+      dpi: configuration.inkDetectDpi,
+      sampleCount: configuration.inkDetectSampleCount,
+    };
+
+    // Only the detection settings invalidate a measurement; trim size and
+    // margins are applied afterwards and are cheap to recompute.
+    if (
+      previous &&
+      (previous.dpi !== this.autoFit.dpi || previous.sampleCount !== this.autoFit.sampleCount)
+    ) {
+      this.inkBounds = null;
+    }
+  }
+
+  /**
+   * Measures the source PDF's ink bounding box, unless it's already been measured.
+   * Rasterises via pdf.js, so it's the slow part of the pipeline - a few hundred ms
+   * for a typical book.
+   * @returns {Promise<import("./utils/inkBounds.js").InkBounds | null>}
+   */
+  async ensureInkBounds() {
+    if (this.inkBounds || !this.input) return this.inkBounds;
+
+    const bounds = await detectInkBounds(this.input, {
+      dpi: this.autoFit.dpi,
+      sampleCount: this.autoFit.sampleCount,
+    });
+
+    if (bounds) {
+      // pdf-lib's embedder works from the MediaBox and ignores the CropBox, so flag
+      // documents where the two disagree - what you see in a viewer is the CropBox.
+      const mismatched = this.currentdoc.getPages().filter((page) => {
+        const crop = page.getCropBox();
+        const media = page.getMediaBox();
+        return (
+          crop.x !== media.x ||
+          crop.y !== media.y ||
+          crop.width !== media.width ||
+          crop.height !== media.height
+        );
+      }).length;
+      if (mismatched > 0) {
+        bounds.warnings.push(
+          `${mismatched} page(s) have a CropBox that differs from their MediaBox. The measurement ` +
+            'follows what actually renders, but double-check the preview.'
+        );
+      }
+    }
+
+    this.inkBounds = bounds;
+    return bounds;
+  }
+
+  /**
+   * Replaces [this.padding_pt] with values derived from the measured ink box, so that
+   * the content lands on the finished trimmed page with the requested margins.
+   * No-op unless auto-fit is on and we have a measurement.
+   */
+  applyAutoFitPadding() {
+    this.autoFitResult = null;
+    if (!this.autoFit.enabled || !this.inkBounds || !this.cropbox) return;
+
+    try {
+      const result = computeAutoFitPadding({
+        // Post-crop, the cropbox *is* the ink box - already swapped if the source
+        // pages were rotated a quarter turn.
+        inkBox: { width: this.cropbox.width, height: this.cropbox.height },
+        cell: layoutCellSize(this.papersize, this.page_layout),
+        trim: this.autoFit.trim,
+        marginTopBottom: this.autoFit.marginTopBottom,
+        extraGutter: this.autoFit.extraGutter,
+      });
+      this.padding_pt = result.padding;
+      // The derivation assumes the content is scaled proportionally to fill the cell.
+      this.page_scaling = 'lockratio';
+      this.autoFitResult = result;
+    } catch (e) {
+      console.error('Auto-fit failed, falling back to the manual margins:', e);
+      this.autoFitResult = { error: e.message, warnings: [e.message] };
+    }
   }
 
   /**
@@ -145,6 +240,7 @@ export class Book {
    */
   async openpdf(file) {
     this.inputpdf = file.name;
+    this.inkBounds = null;
     this.input = await file.arrayBuffer(); //fs.readFileSync(filepath);
     this.currentdoc = await PDFDocument.load(this.input);
     this.fixBlankPages();
@@ -216,7 +312,12 @@ export class Book {
   async createpages() {
     this.createpagelist();
     let pages;
-    [this.managedDoc, pages] = await embedPagesInNewPdf(this.currentdoc);
+    // When auto-fit is on, crop every source page down to the measured ink box at
+    // embed time. Each embedded page's origin then *is* the box's corner and its
+    // width/height are the box's, so the rotation branches below and everything
+    // downstream keep working unchanged.
+    const inkCropBox = this.autoFit.enabled && this.inkBounds ? this.inkBounds.box : undefined;
+    [this.managedDoc, pages] = await embedPagesInNewPdf(this.currentdoc, null, inkCropBox);
 
     const isNone = this.source_rotation == 'none';
     const is90cw = this.source_rotation == '90cw';
@@ -303,6 +404,7 @@ export class Book {
     }
 
     console.log('Created pages for : ', this.book);
+    this.applyAutoFitPadding();
     const dimensions = calculateDimensions(this);
     const positions = calculateLayout(this);
 
@@ -314,6 +416,8 @@ export class Book {
       cropbox: this.cropbox,
       managedDoc: this.managedDoc,
       positions,
+      autoFit: this.autoFitResult,
+      inkBounds: this.inkBounds,
     };
   }
 

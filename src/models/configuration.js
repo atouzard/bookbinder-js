@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { z } from 'zod';
-import { PAGE_SIZES } from '../constants';
+import { PAGE_SIZES, TRIM_SIZE_PRESETS } from '../constants';
 
 const commaSeparatedNumberList = z
   .union([z.string(), z.array(z.number())])
@@ -76,6 +76,13 @@ const printFile = urlSafe(z.enum(['aggregated', 'signatures', 'both'])).default(
 
 const pageRange = urlSafe(z.string().trim()).default('');
 
+const trimSizeUnit = urlSafe(z.enum(['mm', 'pt', 'in'])).default('mm');
+
+/** @type { keyof typeof import("../constants").TRIM_SIZE_PRESETS } */
+const availableTrimPresets = Object.keys(TRIM_SIZE_PRESETS);
+
+const trimSizePreset = urlSafe(z.enum([...availableTrimPresets, 'CUSTOM'])).default('B5_BOOK');
+
 export const schema = z.object({
   printFile,
   pageRange,
@@ -111,6 +118,18 @@ export const schema = z.object({
 
   paperSizeCustomWidth: urlSafe(z.coerce.number()).default(0),
   paperSizeCustomHeight: urlSafe(z.coerce.number()).default(0),
+
+  // Auto-fit: measure the source PDF's ink box, then derive the four padding
+  // values above so the content lands centered on the *trimmed* page.
+  autoFitEnabled: urlSafe(coercedBoolean).default(false),
+  trimSizePreset,
+  trimSizeUnit,
+  trimSizeWidth: urlSafe(z.coerce.number()).default(165),
+  trimSizeHeight: urlSafe(z.coerce.number()).default(240),
+  contentMarginTopBottom: urlSafe(z.coerce.number()).default(20),
+  extraBindingMargin: urlSafe(z.coerce.number()).default(0),
+  inkDetectDpi: urlSafe(z.coerce.number()).default(100),
+  inkDetectSampleCount: urlSafe(z.coerce.number()).default(25),
 });
 
 /** @typedef {z.infer<typeof schema>} Configuration */

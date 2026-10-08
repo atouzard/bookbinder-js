@@ -34,10 +34,14 @@ export async function interleavePages(pdfA, pdfB) {
  * @param sourcePdf
  * @param {(string|number)[]} [pageNumbers] - an array of page numbers. Ex: [1,5,6,7,8,'b',10] or null to embed all pages from source
  *          NOTE: re-construction behavior kicks in if there's 'b's in the list
+ * @param {{x: number, y: number, width: number, height: number}} [cropBox] - optional region of each
+ *          source page to embed, in the page's own coordinates. The embedded page's origin becomes
+ *          the box's lower-left corner and its width/height become the box's, so everything
+ *          downstream sees the cropped region as if it were the whole page.
  *
  * @return {Promise<[PDFDocument, PDFEmbeddedPage[]]>} PDF with pages embedded, embedded page array
  */
-export async function embedPagesInNewPdf(sourcePdf, pageNumbers) {
+export async function embedPagesInNewPdf(sourcePdf, pageNumbers, cropBox) {
   const newPdf = await PDFDocument.create();
   const needsReSorting = pageNumbers != null && pageNumbers.includes('b');
   if (pageNumbers == null) {
@@ -47,7 +51,18 @@ export async function embedPagesInNewPdf(sourcePdf, pageNumbers) {
       return typeof p === 'number';
     });
   }
-  let embeddedPages = await newPdf.embedPdf(sourcePdf, pageNumbers);
+  const sourcePages = sourcePdf.getPages();
+  const pagesToEmbed = pageNumbers.map((i) => sourcePages[i]);
+  // embedPages takes one bounding box per page; we apply the same crop to all of them.
+  const boundingBoxes = cropBox
+    ? pagesToEmbed.map(() => ({
+        left: cropBox.x,
+        bottom: cropBox.y,
+        right: cropBox.x + cropBox.width,
+        top: cropBox.y + cropBox.height,
+      }))
+    : [];
+  let embeddedPages = await newPdf.embedPages(pagesToEmbed, boundingBoxes);
   // what a gnarly little hack. Letting this sit for now --
   //   --- downstream code requires embeds to be in their 'correct' index possition
   //    but we want to only embed half the pages for the aggregate single sides
