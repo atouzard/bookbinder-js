@@ -7,16 +7,34 @@ import {
   updatePaperSelectOptionsUnits,
   updateAddOrRemoveCustomPaperOption,
   clearPreview,
+  renderAutoFit,
+  syncTrimSizeToSelection,
 } from './renderUtils';
 
-export function handleInputChange(book, bookbinderForm) {
+/**
+ * @param book
+ * @param bookbinderForm
+ * @param {HTMLElement} [changed] - the field the user just edited, when known. Lets
+ *      dependent fields update before the form is read back.
+ */
+export function handleInputChange(book, bookbinderForm, changed) {
+  // Both of these run before the form is read: a custom paper size feeds
+  // PAGE_SIZES, and the finished size follows from the resulting cell.
+  updateAddOrRemoveCustomPaperOption();
+  updatePaperSelectOptionsUnits(); // make sure this goes AFTER the Custom update!
+  if (changed) {
+    syncTrimSizeToSelection(changed.name);
+  }
+
   const formData = new FormData(bookbinderForm);
   const updatedConfiguration = saveForm(formData);
   book.update(updatedConfiguration);
-  updateAddOrRemoveCustomPaperOption();
-  updatePaperSelectOptionsUnits(); // make sure this goes AFTER the Custom update!
   if (book.inputpdf) {
     updateRenderedForm(book);
+  } else {
+    // There is nothing to re-impose yet, but the auto-fit panel still has to
+    // open, close and keep its button in step.
+    renderAutoFit(book, null);
   }
 }
 

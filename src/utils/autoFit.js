@@ -2,6 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { mmToPt } from '../constants.js';
+
 /**
  * Turns a measured ink bounding box into the four padding values that
  * [calculateDimensions] needs in order to land that content on the *finished,
@@ -237,4 +239,25 @@ export function suggestSheets(trim, pageSizes, pageLayouts, limit = 3, preferred
     if (unique.length === limit) break;
   }
   return unique;
+}
+
+/**
+ * The largest finished format that can still be cut out of a given layout cell.
+ *
+ * Driven by the cell rather than by the paper name, so it follows the fold as
+ * well as the sheet: B5 folded once gives a B6 book, and the same A6 book comes
+ * off A5 folded once or A4 folded twice.
+ *
+ * @param {[number, number]} cell - layout cell [width, height], in pt
+ * @param {Record<string, {width: number, height: number}>} presets - sizes in mm
+ * @returns {string|null} the preset key, or null when even the smallest is too big
+ */
+export function largestPresetFitting(cell, presets) {
+  return (
+    Object.entries(presets)
+      .filter(([, p]) => mmToPt(p.width) <= cell[0] && mmToPt(p.height) <= cell[1])
+      // Biggest book the paper can carry; anything smaller just wastes it.
+      .sort(([, a], [, b]) => b.width * b.height - a.width * a.height)
+      .map(([key]) => key)[0] ?? null
+  );
 }

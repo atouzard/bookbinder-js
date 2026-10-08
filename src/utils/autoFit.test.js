@@ -3,7 +3,12 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { describe, expect, it } from 'vitest';
-import { computeAutoFitPadding, layoutCellSize, suggestSheets } from './autoFit';
+import {
+  computeAutoFitPadding,
+  largestPresetFitting,
+  layoutCellSize,
+  suggestSheets,
+} from './autoFit';
 import { calculateDimensions } from './layout';
 import {
   PAGE_LAYOUTS,
@@ -283,5 +288,35 @@ describe('TRIM_SIZE_PRESETS', () => {
     expect(trimPresetLabel(TRIM_SIZE_PRESETS.A5_BOOK)).toBe(
       'A5 book - 135 x 200 mm page (print on A4, folded once)'
     );
+  });
+});
+
+describe('largestPresetFitting', () => {
+  const pick = (paper, layout) =>
+    largestPresetFitting(
+      layoutCellSize(PAGE_SIZES[paper], PAGE_LAYOUTS[layout]),
+      TRIM_SIZE_PRESETS
+    );
+
+  it.each([
+    ['A5', 'folio', 'A6_BOOK'],
+    ['B5', 'folio', 'B6_BOOK'],
+    ['A4', 'folio', 'A5_BOOK'],
+  ])('%s folded once gives a %s book', (paper, layout, expected) => {
+    expect(pick(paper, layout)).toBe(expected);
+  });
+
+  it('follows the fold, not just the sheet name', () => {
+    // Same finished book, two routes: A5 folded once, or A4 folded twice.
+    expect(pick('A4', 'quarto')).toBe('A6_BOOK');
+    expect(pick('A4', 'quarto')).toBe(pick('A5', 'folio'));
+  });
+
+  it.each(Object.entries(TRIM_SIZE_PRESETS))('%s is what its own sheet selects', (key, preset) => {
+    expect(pick(preset.sheet, 'folio')).toBe(key);
+  });
+
+  it('returns null when even the smallest book will not fit', () => {
+    expect(pick('A9', 'folio')).toBeNull();
   });
 });

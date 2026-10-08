@@ -2,8 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { PAGE_SIZES, TRIM_SIZE_PRESETS, trimPresetLabel, ptToMm } from '../constants';
-import { layoutCellSize } from './autoFit.js';
+import { PAGE_LAYOUTS, PAGE_SIZES, TRIM_SIZE_PRESETS, trimPresetLabel, ptToMm } from '../constants';
+import { largestPresetFitting, layoutCellSize } from './autoFit.js';
 import { handleSewingMarksCheckboxState } from './clickHandlers.js';
 
 export function renderPageCount(book) {
@@ -165,6 +165,50 @@ export function renderWacky() {
     });
     section.style.opacity = isWacky ? 0.3 : 1.0;
   });
+}
+
+/** Writes a preset's dimensions into the trim size inputs. */
+function applyTrimPreset(key) {
+  const preset = TRIM_SIZE_PRESETS[key];
+  if (!preset) return;
+  document.getElementById('trim_size_unit').value = 'mm';
+  document.getElementById('trim_size_width').value = preset.width;
+  document.getElementById('trim_size_height').value = preset.height;
+}
+
+/**
+ * Keeps the finished size in step with the paper and fold.
+ *
+ * Choosing a sheet already decides what book can come off it, so picking B5
+ * means a B6 book and there is no reason to make anyone look that up. The cell
+ * is what actually constrains it, so this follows the fold too: A6 comes off
+ * A5 folded once or A4 folded twice.
+ *
+ * A Custom size is left alone - it was typed deliberately.
+ *
+ * @param {string} changedName - the `name` of the field the user just changed
+ */
+export function syncTrimSizeToSelection(changedName) {
+  const presetEl = document.getElementById('trim_size_preset');
+
+  if (changedName === 'trim_size_preset') {
+    applyTrimPreset(presetEl.value);
+    return;
+  }
+  if (!['paper_size', 'pagelayout', 'paper_rotation_90'].includes(changedName)) return;
+  if (presetEl.value === 'CUSTOM') return;
+
+  const paper = PAGE_SIZES[document.getElementById('paper_size').value];
+  const layout = PAGE_LAYOUTS[document.getElementById('pagelayout').value];
+  if (!paper || !layout) return;
+  const rotated = document.querySelector("input[name='paper_rotation_90']").checked;
+  const sheet = rotated ? [paper[1], paper[0]] : paper;
+
+  const key = largestPresetFitting(layoutCellSize(sheet, layout), TRIM_SIZE_PRESETS);
+  // Nothing fits: leave the choice as it is and let the report explain why.
+  if (!key) return;
+  presetEl.value = key;
+  applyTrimPreset(key);
 }
 
 export function renderTrimSizeOptions() {
