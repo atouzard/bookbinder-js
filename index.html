@@ -10,9 +10,9 @@
     <link rel="stylesheet" href="https://unpkg.com/balloon-css/balloon.min.css" />
     <link rel="stylesheet" type="text/css" href="./styles.css" />
     <link rel="stylesheet" href="./matcha.css" />
-    <link rel="icon" type="image/x-icon" href="https://momijizukamori.github.io/bookbinder-js/favicon.ico" />
+    <link rel="icon" type="image/x-icon" href="./favicon.ico" />
     <meta charset="UTF-8" />
-    <script type="module" crossorigin src="https://momijizukamori.github.io/bookbinder-js/assets/index-DP2hqLOf.js"></script>
+    <script type="module" crossorigin src="./assets/index-1NOtkQDS.js"></script>
   </head>
 
   <body>
@@ -72,7 +72,7 @@
   </label>
 
   <div id="none_example" class="row source_rotation_example flash variant small flex center">
-    <img src="https://momijizukamori.github.io/bookbinder-js/img/noRotationDiagram.png" width="100px" />
+    <img src="./img/noRotationDiagram.png" width="100px" />
     <p>
       <br />
       For books that read like a standard novel<br />
@@ -80,7 +80,7 @@
     </p>
   </div>
   <div id="90cw_example" class="hidden source_rotation_example flash variant small flex center">
-    <img src="https://momijizukamori.github.io/bookbinder-js/img/90cwDiagram.png" width="100px" />
+    <img src="./img/90cwDiagram.png" width="100px" />
     <p>
       <br />
       For books that turn pages like a calender<br />
@@ -88,7 +88,7 @@
     </p>
   </div>
   <div id="90ccw_example" class="hidden source_rotation_example flash variant small flex center">
-    <img src="https://momijizukamori.github.io/bookbinder-js/img/90ccwDiagram.png" width="100px" />
+    <img src="./img/90ccwDiagram.png" width="100px" />
     <p>
       <br />
       For books that turn pages like a calender<br />
@@ -99,7 +99,7 @@
     id="out_binding_example"
     class="hidden source_rotation_example row flash variant small flex center"
   >
-    <img src="https://momijizukamori.github.io/bookbinder-js/img/bottomBindingDiagram.png" width="100px" />
+    <img src="./img/bottomBindingDiagram.png" width="100px" />
     <p>
       <br />
       For books with bound edge at bottom of the page<br />
@@ -110,7 +110,7 @@
     id="in_binding_example"
     class="hidden source_rotation_example flash variant small flex center"
   >
-    <img src="https://momijizukamori.github.io/bookbinder-js/img/topBindingDiagram.png" width="100px" />
+    <img src="./img/topBindingDiagram.png" width="100px" />
     <p>
       <br />
       For books with bound edge at top of the page<br />
@@ -317,6 +317,131 @@
   </span>
 </section>
 
+        <section class="section" id="auto_fit_section">
+  <header><h2>Auto-fit to Trimmed Page</h2></header>
+  <p class="small">
+    Measures where the ink actually sits on your source PDF, then works out the four margins above
+    for you, so the body lands centered on the finished page <i>after</i> you trim the bound block.
+    The spine fold can't be trimmed, so all the horizontal waste is placed on the fore edge and the
+    vertical waste is split between head and tail.
+  </p>
+  <label class="mb-1"
+    >Auto-fit content:
+    <input type="checkbox" name="auto_fit_enabled" id="auto_fit_enabled" />
+    <span
+      data-balloon-length="medium"
+      aria-label="Overrides the four margins above with measured values. Also forces page scaling to 'Keep proportional'."
+      data-balloon-pos="up"
+      >ℹ️
+    </span>
+  </label>
+
+  <div id="auto_fit_details">
+    <label for="trim_size_preset"
+      >Finished size after trimming:
+      <select name="trim_size_preset" id="trim_size_preset" class="inline"></select>
+    </label>
+
+    <div class="input-group ml-2 mt-1">
+      <label
+        >Trimmed width:
+        <input
+          type="number"
+          id="trim_size_width"
+          name="trim_size_width"
+          step="any"
+          class="layout_margin_user_input_field inline"
+      /></label>
+      <label
+        >Trimmed height:
+        <input
+          type="number"
+          id="trim_size_height"
+          name="trim_size_height"
+          step="any"
+          class="layout_margin_user_input_field inline"
+      /></label>
+      <label
+        >Units:
+        <select name="trim_size_unit" id="trim_size_unit" class="inline">
+          <option value="mm" selected>mm</option>
+          <option value="pt">points</option>
+          <option value="in">inches</option>
+        </select>
+      </label>
+      <label
+        >Top &amp; bottom margin:
+        <input
+          type="number"
+          id="content_margin_top_bottom"
+          name="content_margin_top_bottom"
+          step="any"
+          class="layout_margin_user_input_field inline"
+      /></label>
+      <label
+        >Extra binding margin:
+        <input
+          type="number"
+          id="extra_binding_margin"
+          name="extra_binding_margin"
+          step="any"
+          class="layout_margin_user_input_field inline"
+        />
+        <span
+          data-balloon-length="medium"
+          aria-label="Shifts the text block away from the spine, for bindings that swallow part of the gutter. Taken off the fore-edge margin, so keep it small."
+          data-balloon-pos="up"
+          >ℹ️
+        </span>
+      </label>
+    </div>
+
+    <details id="ink_detect_details">
+      <summary>Detection settings</summary>
+      <div class="input-group ml-2">
+        <label
+          >Measuring resolution:
+          <input
+            type="number"
+            id="ink_detect_dpi"
+            name="ink_detect_dpi"
+            class="layout_margin_user_input_field inline"
+          />dpi</label
+        >
+        <label
+          >Pages to sample:
+          <input
+            type="number"
+            id="ink_detect_sample_count"
+            name="ink_detect_sample_count"
+            class="layout_margin_user_input_field inline"
+          />
+          <span
+            data-balloon-length="medium"
+            aria-label="Pages are sampled evenly across the document. Use 0 to measure every page - slower, but catches stray wide content."
+            data-balloon-pos="up"
+            >ℹ️
+          </span>
+        </label>
+      </div>
+    </details>
+
+    <div class="mt-2">
+      <button type="button" name="measure_ink" id="measure_ink" class="small p-1" disabled>
+        Measure source PDF
+      </button>
+      <span
+        data-balloon-length="medium"
+        aria-label="Measuring rasterises a sample of pages, so it is run on demand rather than on every change. Run it again after swapping the source file or changing the detection settings."
+        data-balloon-pos="up"
+        >ℹ️
+      </span>
+    </div>
+
+    <div id="auto_fit_report" class="small mt-2"></div>
+  </div>
+</section>
+
         <section class="section">
   <h2>PDF Markup</h2>
   <p class="flash attention small">(does not currently work with Wacky Small Layouts -- soon!)</p>
@@ -406,7 +531,7 @@
     </div>
     <img
       alt="sewing image - use tape width of 0pt to make a single dot (overlapping marks)"
-      src="https://momijizukamori.github.io/bookbinder-js/img/sewing_settings_explanation.png"
+      src="./img/sewing_settings_explanation.png"
       style="height: 100%; width: 100%; object-fit: contain"
     />
   </details>
@@ -519,7 +644,7 @@
     <summary>Instructions</summary>
     <p>
       <center>
-        <img src="https://momijizukamori.github.io/bookbinder-js/img/2_sig_4x4_diagram.png" />
+        <img src="./img/2_sig_4x4_diagram.png" />
       </center>
       Cut the vertical center line. You can also cut the horizontal lines if you like, or just fold
       it up as detailed above.
@@ -576,7 +701,7 @@
     <summary>Instructions</summary>
     <p>
       <center>
-        <img src="https://momijizukamori.github.io/bookbinder-js/img/3_3_4_diagram.png" />
+        <img src="./img/3_3_4_diagram.png" />
       </center>
       Cut along the cut lines. Fold up the 3 folio signatures, then the 4 folio.
     </p>
@@ -624,7 +749,7 @@
     </p>
     <p>
       <center>
-        <img src="https://momijizukamori.github.io/bookbinder-js/img/6_10s_diagram.png" />
+        <img src="./img/6_10s_diagram.png" />
       </center>
       Cut out the rows. Fold up the folios like a big zig-zag (two per face). Then fold the first 2
       folios into a signature and the last 3 folios into a signature. I often cut them apart only
