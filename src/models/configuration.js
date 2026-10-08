@@ -81,7 +81,7 @@ const trimSizeUnit = urlSafe(z.enum(['mm', 'pt', 'in'])).default('mm');
 /** @type { keyof typeof import("../constants").TRIM_SIZE_PRESETS } */
 const availableTrimPresets = Object.keys(TRIM_SIZE_PRESETS);
 
-const trimSizePreset = urlSafe(z.enum([...availableTrimPresets, 'CUSTOM'])).default('B5_BOOK');
+const trimSizePreset = urlSafe(z.enum([...availableTrimPresets, 'CUSTOM'])).default('A5_BOOK');
 
 export const schema = z.object({
   printFile,
@@ -124,8 +124,8 @@ export const schema = z.object({
   autoFitEnabled: urlSafe(coercedBoolean).default(false),
   trimSizePreset,
   trimSizeUnit,
-  trimSizeWidth: urlSafe(z.coerce.number()).default(165),
-  trimSizeHeight: urlSafe(z.coerce.number()).default(240),
+  trimSizeWidth: urlSafe(z.coerce.number()).default(135),
+  trimSizeHeight: urlSafe(z.coerce.number()).default(200),
   contentMarginTopBottom: urlSafe(z.coerce.number()).default(20),
   extraBindingMargin: urlSafe(z.coerce.number()).default(0),
   inkDetectDpi: urlSafe(z.coerce.number()).default(100),

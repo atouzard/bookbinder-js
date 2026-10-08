@@ -2,7 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { PAGE_SIZES, TRIM_SIZE_PRESETS, ptToMm } from '../constants';
+import { PAGE_SIZES, TRIM_SIZE_PRESETS, trimPresetLabel, ptToMm } from '../constants';
+import { layoutCellSize } from './autoFit.js';
 import { handleSewingMarksCheckboxState } from './clickHandlers.js';
 
 export function renderPageCount(book) {
@@ -159,7 +160,7 @@ export function renderWacky() {
   console.log('Is a wacky layout? ', isWacky);
   ['book_size', 'auto_fit_section'].forEach((id) => {
     const section = document.getElementById(id);
-    section.querySelectorAll('input').forEach((x) => {
+    section.querySelectorAll('input, button').forEach((x) => {
       x.disabled = isWacky;
     });
     section.style.opacity = isWacky ? 0.3 : 1.0;
@@ -172,7 +173,7 @@ export function renderTrimSizeOptions() {
     const opt = document.createElement('option');
     opt.setAttribute('value', key);
     opt.setAttribute('name', key);
-    opt.innerText = preset.label;
+    opt.innerText = trimPresetLabel(preset);
     list.appendChild(opt);
   });
   const custom = document.createElement('option');
@@ -180,6 +181,29 @@ export function renderTrimSizeOptions() {
   custom.setAttribute('name', 'CUSTOM');
   custom.innerText = 'Custom';
   list.appendChild(custom);
+}
+
+/**
+ * Shows a spinner while the source PDF is being measured. Measuring can take a
+ * few seconds on a long book, and it blocks the preview behind it, so it needs
+ * to be visible rather than looking like the app has stalled.
+ *
+ * @param {number} [done] - pages measured so far
+ * @param {number} [total] - pages that will be measured
+ */
+export function renderAutoFitMeasuring(done, total) {
+  // The user may have only just ticked the box, in which case the section that
+  // holds the report is still hidden.
+  document.getElementById('auto_fit_details').style.display = 'block';
+
+  const button = document.getElementById('measure_ink');
+  button.disabled = true;
+  button.innerText = 'Measuring...';
+
+  const progress = total ? ` page ${done} of ${total}` : '';
+  document.getElementById('auto_fit_report').innerHTML =
+    `<div class="measuring"><span class="spinner"></span>` +
+    `<span>Measuring the source PDF's margins${progress}...</span></div>`;
 }
 
 /**
@@ -196,6 +220,9 @@ export function renderAutoFit(book, info) {
 
   // readOnly rather than disabled: a disabled input drops out of the FormData, which
   // would quietly wipe the user's hand-set margins.
+  // Only lock the manual margins once auto-fit is actually driving them; while a
+  // measurement is still pending they are what gets used.
+  const owned = enabled && Boolean(info && info.autoFit && info.autoFit.padding);
   [
     'main_fore_edge_padding_pt',
     'binding_edge_padding_pt',
@@ -203,22 +230,67 @@ export function renderAutoFit(book, info) {
     'bottom_edge_padding_pt',
   ].forEach((name) => {
     const el = document.querySelector(`input[name="${name}"]`);
-    el.readOnly = enabled;
-    el.style.opacity = enabled ? 0.6 : 1.0;
+    el.readOnly = owned;
+    el.style.opacity = owned ? 0.6 : 1.0;
   });
+
+  const result = info && info.autoFit;
+  const bounds = info && info.inkBounds;
+
+  const button = document.getElementById('measure_ink');
+  button.disabled = !enabled || !book.inputpdf;
+  button.innerText = bounds ? 'Measure again' : 'Measure source PDF';
 
   if (!enabled) {
     report.innerHTML = '';
     return;
   }
 
-  const result = info && info.autoFit;
-  const bounds = info && info.inkBounds;
+  // The single most useful number here: a finished page can never be larger than
+  // the cell it is cut from, and getting that wrong is the easiest mistake to
+  // make, so state it whether or not anything has been measured yet.
+  const cell = layoutCellSize(book.papersize, book.page_layout);
+  const cellLine =
+    `<div class="small mb-1">Layout cell: <b>${ptToMm(cell[0]).toFixed(0)} x ` +
+    `${ptToMm(cell[1]).toFixed(0)} mm</b> &mdash; ${book.page_layout.per_sheet / 2} pages per ` +
+    `sheet side, so the finished size must be smaller than this.</div>`;
 
   if (!bounds) {
-    report.innerHTML = book.inputpdf
-      ? '<span class="flash attention">Could not find any ink in this PDF - auto-fit is inactive.</span>'
-      : 'Load a PDF and its margins will be measured automatically.';
+    // Measuring is deliberately on demand, so an un-measured document is the
+    // normal starting state rather than a failure. Say which of the two it is.
+    if (!book.inputpdf) {
+      report.innerHTML = `${cellLine}Load a PDF, then press <b>Measure source PDF</b>.`;
+    } else if (book.measurementFailed) {
+      report.innerHTML =
+        `${
+          cellLine
+        }<span class="flash attention">No ink found in this PDF, so there is nothing to ` +
+        `measure. Auto-fit is inactive and the margins above still apply.</span>`;
+    } else {
+      report.innerHTML =
+        `${cellLine}Press <b>Measure source PDF</b> to read this document&rsquo;s margins. ` +
+        `Until then the margins above are used as they are.`;
+    }
+    return;
+  }
+
+  // A failed auto-fit leaves the manual margins in force, which is easy to miss,
+  // so say so loudly rather than showing a measurement that wasn't applied.
+  if (result && result.error) {
+    let html =
+      `<div class="flash attention"><b>Auto-fit is not applied.</b><br />` +
+      `${escapeHtml(result.error)}</div>`;
+    if (result.suggestions && result.suggestions.length > 0) {
+      const rows = result.suggestions
+        .map(
+          (s) =>
+            `<li>${s.paper}${s.rotated ? ' rotated 90&deg;' : ''}, ${s.layout} ` +
+            `&rarr; cell of ${ptToMm(s.cell[0]).toFixed(0)} x ${ptToMm(s.cell[1]).toFixed(0)} mm</li>`
+        )
+        .join('');
+      html += `<div class="small">Sheet and layout combinations that would work:<ul>${rows}</ul></div>`;
+    }
+    report.innerHTML = cellLine + html;
     return;
   }
 
@@ -237,7 +309,7 @@ export function renderAutoFit(book, info) {
   const box = bounds.box;
   const sampled = `${bounds.sampled.length} page${bounds.sampled.length === 1 ? '' : 's'}`;
 
-  let html = `<b>Measured content</b><br />
+  let html = `${cellLine}<b>Measured content</b><br />
     ${mm(box.width)} x ${mm(box.height)}, from ${mm(box.x)} left and ${mm(box.y)} up
     the source page (sampled ${sampled}).<br /><br />`;
 

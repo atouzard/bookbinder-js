@@ -84,3 +84,32 @@ section label {
   display: inline-block;
   vertical-align: top;
 }
+
+/* Shown while the source PDF is being measured for auto-fit. */
+.measuring {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+.spinner {
+  display: inline-block;
+  flex: none;
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  /* Rotation is composited, so the spinner keeps turning even while the main
+     thread is busy rasterising a page. */
+  animation: spinner-rotate 0.7s linear infinite;
+}
+@keyframes spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2.4s;
+  }
+}

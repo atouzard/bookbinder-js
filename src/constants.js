@@ -12,6 +12,7 @@ export const PAGE_SIZES = {
   POSTCARD: [283, 416],
   A0: [2384, 3370],
   A1: [1684, 2384],
+  A2: [1191, 1684],
   A3: [842, 1191],
   A4: [595, 842],
   A5: [420, 595],
@@ -203,12 +204,32 @@ export function toPt(value, unit) {
 }
 
 /**
- * Common finished (post-trim) book block sizes, in millimetres.
- * These are the size of a page *after* the bound block has been guillotined,
- * so each one is deliberately smaller than the layout cell it's cut from.
+ * Finished book formats: the size of a single page once the block has been
+ * folded, sewn and trimmed.
+ *
+ * Folding halves the sheet, so the paper you print on is always one size up
+ * from the book you end up with - an A5 book comes off A4, a B6 book off B5.
+ * `sheet` names that paper for a folio (one fold); quarto and octavo reach the
+ * same page size from correspondingly larger stock.
+ *
+ * Only formats that fold out of paper a desktop printer takes are listed here.
+ * Larger books are still possible through the Custom option - the report will
+ * say which sheet they need.
+ *
+ * The widths/heights are the nominal format minus a few millimetres of trim:
+ * a little off the fore edge, and a little off head and tail.
  */
 export const TRIM_SIZE_PRESETS = {
-  B5_BOOK: { label: 'B5 book - 165 x 240 mm (from a B5 cell)', width: 165, height: 240 },
-  A4_BOOK: { label: 'A4 book - 200 x 270 mm (from an A4 cell)', width: 200, height: 270 },
-  A5_BOOK: { label: 'A5 book - 140 x 200 mm (from an A5 cell)', width: 140, height: 200 },
+  A6_BOOK: { width: 100, height: 140, sheet: 'A5', format: 'A6' },
+  B6_BOOK: { width: 115, height: 165, sheet: 'B5', format: 'B6' },
+  A5_BOOK: { width: 135, height: 200, sheet: 'A4', format: 'A5' },
 };
+
+/**
+ * "A5 book - 140 x 200 mm page (print on A4, folded once)"
+ * @param {{width: number, height: number, sheet: string, format: string}} preset
+ * @returns {string}
+ */
+export const trimPresetLabel = (preset) =>
+  `${preset.format} book - ${preset.width} x ${preset.height} mm page ` +
+  `(print on ${preset.sheet}, folded once)`;

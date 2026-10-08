@@ -6,6 +6,7 @@ import { schema } from '../models/configuration';
 import { clearLocalSettings, getLocalSettings, setLocalSettings } from './localStorageUtils';
 import {
   renderAutoFit,
+  renderAutoFitMeasuring,
   renderFormFromSettings,
   renderInfoBox,
   renderPageCount,
@@ -95,24 +96,37 @@ export const loadConfiguration = () => {
  * @param { import("../book").Book } book The book to update the form from
  */
 export function updateRenderedForm(book) {
-  // Measuring rasterises the source, so it only happens once per file - but it has
-  // to finish before the pages are built, since the ink box is what they're cropped to.
-  const measured = book.autoFit.enabled ? book.ensureInkBounds() : Promise.resolve(null);
+  return book.createpages().then((info) => {
+    updatePageLayoutInfo(info);
+    console.log('... pages created');
+    renderPageCount(book);
+    renderInfoBox(book);
+    renderWacky();
+    renderAutoFit(book, info);
+  });
+}
 
-  return measured
+/**
+ * Measures the source PDF and rebuilds the preview from the result.
+ *
+ * Rasterising is far too slow to run on every form change, so it's driven by an
+ * explicit button. Always re-measures: the button exists precisely so it can be
+ * run again after changing the file or the detection settings.
+ *
+ * @param { import("../book").Book } book
+ */
+export function runInkMeasurement(book) {
+  if (!book.input) return Promise.resolve();
+
+  renderAutoFitMeasuring();
+  return book
+    .ensureInkBounds(renderAutoFitMeasuring, true)
     .catch((error) => {
       console.error('Could not measure the source PDF:', error);
+      book.inkBounds = null;
       return null;
     })
-    .then(() => book.createpages())
-    .then((info) => {
-      updatePageLayoutInfo(info);
-      console.log('... pages created');
-      renderPageCount(book);
-      renderInfoBox(book);
-      renderWacky();
-      renderAutoFit(book, info);
-    });
+    .then(() => updateRenderedForm(book));
 }
 
 /**

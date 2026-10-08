@@ -18,11 +18,25 @@ guessing game. The **Auto-fit to Trimmed Page** section does the measuring for y
 sample of pages, finds the outermost extent of anything that prints, and derives the four margins so
 that the body lands centered on the page you'll end up with _after_ trimming the bound block.
 
-Give it the finished size (there are presets, or type your own) and the margin you want above and
-below the text. Because the spine fold can never be trimmed, all the horizontal trim waste is placed
-on the fore edge and the vertical waste is split between head and tail, so the trim box sits hard
-against the binding edge of each layout cell. Note the finished size must be smaller than one layout
-cell -- a 165 x 240 mm block, for instance, comes from a B5 cell, which is a folio of a B4 sheet.
+Give it the finished size and the margin you want above and below the text. **The finished size is
+one page of the bound book, after folding and after trimming** -- not the sheet you print on. Since
+folding halves the sheet, the paper is always one size up from the book:
+
+| Book | Page before trim | Preset       | Print on (folio) |
+| ---- | ---------------- | ------------ | ---------------- |
+| A6   | 105 x 148        | 100 x 140 mm | A5               |
+| B6   | 125 x 176        | 115 x 165 mm | B5               |
+| A5   | 148 x 210        | 135 x 200 mm | A4               |
+
+The presets cover the formats that fold out of paper a desktop printer takes. Larger books are
+still possible with **Custom** -- a 165 x 240 mm B5 book off a B4 sheet, say -- and if the size
+does not fit the current cell the report names the sheets that would work.
+
+Because the spine fold can never be trimmed, all the horizontal trim waste is placed on the fore
+edge and the vertical waste is split between head and tail, so the trim box sits hard against the
+binding edge of each layout cell. The finished size must therefore be smaller than one layout cell;
+the report always shows that cell, and if the size does not fit, auto-fit refuses rather than
+quietly rescaling, and lists sheets that would work.
 
 **Extra binding margin** shifts the block away from the spine for bindings that swallow part of the
 gutter. It comes out of the fore-edge margin, so keep it small; the readout shows both margins and

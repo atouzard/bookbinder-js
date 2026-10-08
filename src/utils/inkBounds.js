@@ -248,7 +248,10 @@ function makeCanvas(width, height) {
  * Measures the ink bounding box of a PDF.
  *
  * @param {ArrayBuffer} arrayBuffer - the raw source PDF
- * @param {Partial<typeof DEFAULT_OPTIONS> & {percentile?: number}} [options]
+ * @param {Partial<typeof DEFAULT_OPTIONS> & {
+ *   percentile?: number,
+ *   onProgress?: (done: number, total: number) => void
+ * }} [options] - onProgress is called after each page, for a progress indicator
  * @returns {Promise<InkBounds|null>} null when the document has no ink at all
  */
 export async function detectInkBounds(arrayBuffer, options = {}) {
@@ -267,6 +270,14 @@ export async function detectInkBounds(arrayBuffer, options = {}) {
     const boxes = [];
     let pageSize = null;
     let rotatedPages = 0;
+
+    let done = 0;
+    const reportProgress = async () => {
+      if (!opts.onProgress) return;
+      opts.onProgress(++done, sampled.length);
+      // Hand the browser a turn so the progress actually paints between pages.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    };
 
     for (const index of sampled) {
       const page = await doc.getPage(index + 1);
@@ -290,7 +301,10 @@ export async function detectInkBounds(arrayBuffer, options = {}) {
       const [viewX0, viewY0, viewX1, viewY1] = viewport.viewBox;
       if (!pageSize) pageSize = { width: viewX1 - viewX0, height: viewY1 - viewY0 };
 
-      if (!pixelBox) continue; // blank page (flyleaf, section break); ignore it
+      if (!pixelBox) {
+        await reportProgress();
+        continue; // blank page (flyleaf, section break); nothing to measure
+      }
 
       // Antialiasing can spread a mark that touches the page edge by a pixel, so
       // clamp: there is by definition no ink outside the page.
@@ -310,6 +324,8 @@ export async function detectInkBounds(arrayBuffer, options = {}) {
         width: right - left,
         height: top - bottom,
       });
+
+      await reportProgress();
     }
 
     if (boxes.length === 0) return null;

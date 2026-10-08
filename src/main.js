@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { Book } from './book.js';
-import { loadForm } from './utils/formUtils.js';
+import { loadForm, runInkMeasurement } from './utils/formUtils.js';
 import { handleFileChange, handleInputChange } from './utils/changeHandlers.js';
 import {
   handleGenerateClick,
@@ -30,6 +30,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const sourceRotation = document.getElementById('source_rotation');
   const sewingMarks = document.getElementById('add_sewing_marks_checkbox');
   const trimSizePreset = document.getElementById('trim_size_preset');
+  const measureInk = document.getElementById('measure_ink');
   const sourceRotationExamples = Array.from(
     document.getElementsByClassName('source_rotation_example')
   );
@@ -46,6 +47,9 @@ window.addEventListener('DOMContentLoaded', () => {
     generate.removeAttribute('disabled');
     preview.removeAttribute('disabled');
   });
+  // Measuring is explicit rather than automatic: it rasterises pages, and it's
+  // worth re-running after swapping the file or changing the detection settings.
+  measureInk.addEventListener('click', () => runInkMeasurement(book));
   generate.addEventListener('click', () => handleGenerateClick(generate, book));
   preview.addEventListener('click', () => handlePreviewClick(preview, book));
   resetSettings.addEventListener('click', () => {

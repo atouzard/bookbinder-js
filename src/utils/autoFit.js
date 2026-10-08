@@ -69,9 +69,14 @@ export function computeAutoFitPadding({ inkBox, cell, trim, marginTopBottom, ext
     throw new Error('Auto-fit needs a non-empty trim size');
   }
   if (trimW > cellW || trimH > cellH) {
-    warnings.push(
-      `The trimmed size (${fmt(trimW)} x ${fmt(trimH)} pt) is larger than the layout cell ` +
-        `(${fmt(cellW)} x ${fmt(cellH)} pt). Use a bigger sheet, or a layout with fewer pages per side.`
+    // Not a warning: you cannot trim a page down to something bigger than itself.
+    // Carrying on would scale the whole design to fit the cell and quietly hand
+    // back margins that aren't the ones asked for - discovered at the guillotine,
+    // after a whole book has been printed.
+    throw new Error(
+      `A finished size of ${fmtMm(trimW)} x ${fmtMm(trimH)} mm doesn't fit the current ` +
+        `layout cell of ${fmtMm(cellW)} x ${fmtMm(cellH)} mm. Pick a bigger sheet, or a ` +
+        `layout with fewer pages per side.`
     );
   }
   if (2 * m >= trimH) {
@@ -148,6 +153,7 @@ export function computeAutoFitPadding({ inkBox, cell, trim, marginTopBottom, ext
 }
 
 const fmt = (n) => Number(n.toFixed(2));
+const fmtMm = (pt) => ((pt * 25.4) / 72).toFixed(1);
 
 /**
  * The size of a single page cell within the sheet, matching the arithmetic in
@@ -162,4 +168,73 @@ export function layoutCellSize(papersize, pageLayout) {
   const x = papersize[0] / pageLayout.cols;
   const y = papersize[1] / pageLayout.rows;
   return pageLayout.landscape ? [y, x] : [x, y];
+}
+
+/**
+ * Finds sheet + layout combinations whose cell is big enough to trim the given
+ * finished size out of. Used to turn "that doesn't fit" into something actionable.
+ *
+ * @param {[number, number]} trim - finished size [width, height], in pt
+ * @param {Record<string, [number, number]>} pageSizes
+ * @param {Record<string, {rows: number, cols: number, landscape: boolean, per_sheet: number}>} pageLayouts
+ * @param {number} [limit]
+ * @param {string} [preferredSheet] - a sheet to list first when it qualifies, so the
+ *      answer never contradicts a preset that already names the paper to use
+ * @returns {{paper: string, rotated: boolean, layout: string, cell: [number, number]}[]}
+ */
+export function suggestSheets(trim, pageSizes, pageLayouts, limit = 3, preferredSheet) {
+  const [trimW, trimH] = trim;
+  const found = [];
+
+  for (const [paper, size] of Object.entries(pageSizes)) {
+    if (!Array.isArray(size)) continue;
+    for (const rotated of [false, true]) {
+      const sheet = rotated ? [size[1], size[0]] : size;
+      for (const [name, layout] of Object.entries(pageLayouts)) {
+        // *_alt layouts are the same geometry, just mirrored rotations.
+        if (name.endsWith('_alt')) continue;
+        const cell = layoutCellSize(sheet, layout);
+        if (cell[0] < trimW || cell[1] < trimH) continue;
+        found.push({
+          paper,
+          rotated,
+          layout: name,
+          cell,
+          // Paper actually thrown away. Measuring the offcut rectangle instead
+          // scores zero whenever one dimension happens to match exactly, which
+          // would rank a cell twice as tall as it needs to be top of the list.
+          waste: cell[0] * cell[1] - trimW * trimH,
+          sheetArea: sheet[0] * sheet[1],
+          perSheet: layout.per_sheet,
+        });
+      }
+    }
+  }
+
+  // Least wasted paper first. Then the smaller sheet, which is the likelier one
+  // to actually fit a printer, and only then more pages per sheet.
+  found.sort((a, b) => a.waste - b.waste || a.sheetArea - b.sheetArea || b.perSheet - a.perSheet);
+
+  // A preset that says "print on A4" must not then be told to use Letter just
+  // because Letter happens to waste a few square millimetres less.
+  if (preferredSheet) {
+    const i = found.findIndex(
+      (o) => o.paper === preferredSheet && o.layout === 'folio' && !o.rotated
+    );
+    if (i > 0) found.unshift(...found.splice(i, 1));
+  }
+
+  // Several names describe the same physical sheet (TABLOID, _11X17 and a
+  // rotated LEDGER are all the same piece of paper), so collapse duplicates
+  // rather than spending the whole list on aliases.
+  const seen = new Set();
+  const unique = [];
+  for (const option of found) {
+    const key = `${option.cell[0].toFixed(1)}x${option.cell[1].toFixed(1)}:${option.layout}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(option);
+    if (unique.length === limit) break;
+  }
+  return unique;
 }

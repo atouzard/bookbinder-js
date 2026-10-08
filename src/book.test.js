@@ -27,9 +27,11 @@ describe('Book model', () => {
     cropbox: null,
     inkBounds: null,
     autoFitResult: null,
+    measurementFailed: false,
     autoFit: {
       enabled: false,
-      trim: [mmToPt(165), mmToPt(240)],
+      preset: 'A5_BOOK',
+      trim: [mmToPt(135), mmToPt(200)],
       marginTopBottom: mmToPt(20),
       extraGutter: 0,
       dpi: 100,

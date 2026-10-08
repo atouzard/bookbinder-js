@@ -6,7 +6,7 @@ import { PDFDocument, PDFEmbeddedPage, degrees } from '@cantoo/pdf-lib';
 import { saveAs } from 'file-saver';
 import { Signatures } from './signatures.js';
 import { WackyImposition } from './wacky_imposition.js';
-import { PAGE_LAYOUTS, PAGE_SIZES, toPt } from './constants.js';
+import { PAGE_LAYOUTS, PAGE_SIZES, TRIM_SIZE_PRESETS, toPt } from './constants.js';
 import JSZip from 'jszip';
 import { loadConfiguration } from './utils/formUtils.js';
 import {
@@ -17,7 +17,7 @@ import {
   drawSewingMarks,
 } from './utils/drawing.js';
 import { calculateDimensions, calculateLayout } from './utils/layout.js';
-import { computeAutoFitPadding, layoutCellSize } from './utils/autoFit.js';
+import { computeAutoFitPadding, layoutCellSize, suggestSheets } from './utils/autoFit.js';
 import { detectInkBounds } from './utils/inkBounds.js';
 import { parsePageRange } from './utils/pageRange.js';
 import { interleavePages, embedPagesInNewPdf } from './utils/pdf.js';
@@ -79,6 +79,8 @@ export class Book {
     this.inkBounds = null;
     /** @type {import("./utils/autoFit.js").AutoFitResult | null} last auto-fit computation */
     this.autoFitResult = null;
+    /** @type {boolean} true when a measurement ran but found no ink at all */
+    this.measurementFailed = false;
 
     this.orderedpages = []; //  ordered list of page numbers (consecutive)
     this.rearrangedpages = []; //  reordered list of page numbers (signatures etc.)
@@ -149,6 +151,7 @@ export class Book {
     const previous = this.autoFit;
     this.autoFit = {
       enabled: configuration.autoFitEnabled,
+      preset: configuration.trimSizePreset,
       trim: [toPt(configuration.trimSizeWidth, unit), toPt(configuration.trimSizeHeight, unit)],
       marginTopBottom: toPt(configuration.contentMarginTopBottom, unit),
       extraGutter: toPt(configuration.extraBindingMargin, unit),
@@ -163,21 +166,27 @@ export class Book {
       (previous.dpi !== this.autoFit.dpi || previous.sampleCount !== this.autoFit.sampleCount)
     ) {
       this.inkBounds = null;
+      this.measurementFailed = false;
     }
   }
 
   /**
    * Measures the source PDF's ink bounding box, unless it's already been measured.
    * Rasterises via pdf.js, so it's the slow part of the pipeline - a few hundred ms
-   * for a typical book.
+   * for a typical book, seconds for a long one at a high sample count.
+   *
+   * @param {(done: number, total: number) => void} [onProgress] - called per page
+   * @param {boolean} [force] - measure again even if there's a cached result
    * @returns {Promise<import("./utils/inkBounds.js").InkBounds | null>}
    */
-  async ensureInkBounds() {
-    if (this.inkBounds || !this.input) return this.inkBounds;
+  async ensureInkBounds(onProgress, force = false) {
+    if (!force && this.inkBounds) return this.inkBounds;
+    if (!this.input) return null;
 
     const bounds = await detectInkBounds(this.input, {
       dpi: this.autoFit.dpi,
       sampleCount: this.autoFit.sampleCount,
+      onProgress,
     });
 
     if (bounds) {
@@ -202,7 +211,19 @@ export class Book {
     }
 
     this.inkBounds = bounds;
+    // Distinguishes "not measured yet" from "measured, and this document has no
+    // ink" - the UI prompts for the first and warns about the second.
+    this.measurementFailed = bounds === null;
     return bounds;
+  }
+
+  /**
+   * Whether auto-fit is switched on but still waiting to be measured. Measuring
+   * is user-triggered, so this is the state the UI prompts from.
+   * @returns {boolean}
+   */
+  needsInkMeasurement() {
+    return Boolean(this.autoFit.enabled && !this.inkBounds && this.input);
   }
 
   /**
@@ -230,7 +251,18 @@ export class Book {
       this.autoFitResult = result;
     } catch (e) {
       console.error('Auto-fit failed, falling back to the manual margins:', e);
-      this.autoFitResult = { error: e.message, warnings: [e.message] };
+      this.autoFitResult = {
+        error: e.message,
+        // Turn "that doesn't fit" into something the user can act on.
+        suggestions: suggestSheets(
+          this.autoFit.trim,
+          PAGE_SIZES,
+          PAGE_LAYOUTS,
+          3,
+          (TRIM_SIZE_PRESETS[this.autoFit.preset] || {}).sheet
+        ),
+        warnings: [],
+      };
     }
   }
 
@@ -241,6 +273,7 @@ export class Book {
   async openpdf(file) {
     this.inputpdf = file.name;
     this.inkBounds = null;
+    this.measurementFailed = false;
     this.input = await file.arrayBuffer(); //fs.readFileSync(filepath);
     this.currentdoc = await PDFDocument.load(this.input);
     this.fixBlankPages();
