@@ -59,6 +59,9 @@ section label {
   position: absolute;
   margin: 0px;
   padding: 0px;
+  /* Without this the border is added to the width, drawing the PDF 2px wider
+     than it is and throwing off the comparison with the trim box. */
+  box-sizing: border-box;
   pointer-events: none;
 }
 
@@ -112,4 +115,20 @@ section label {
   .spinner {
     animation-duration: 2.4s;
   }
+}
+
+/* Where the guillotine goes: the finished page inside the layout cell. */
+#trim_box_layout_preview {
+  position: absolute;
+  margin: 0px;
+  padding: 0px;
+  /* The left edge is pinned to the spine, so without this the border would push
+     the whole cut line outwards at the fore edge. */
+  box-sizing: border-box;
+  border: 2px dashed #d00000;
+  display: none;
+  pointer-events: none;
+}
+.trim_sample_box {
+  border: 2px dashed #d00000;
 }
