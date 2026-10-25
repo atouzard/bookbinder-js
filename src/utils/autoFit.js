@@ -144,6 +144,7 @@ export function computeAutoFitPadding({ inkBox, cell, trim, marginTopBottom, ext
   return {
     padding,
     scale,
+    trim: [trimW, trimH],
     trimMargins: {
       top: vert,
       bottom: vert,

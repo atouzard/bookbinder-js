@@ -101,6 +101,7 @@
     <div>
       <div class="layout_spine_label">spine</div>
       <div class="stripes_paper" id="grid_layout_preview">
+        <div id="trim_box_layout_preview"></div>
         <div class="stripes_pdf" id="pdf_on_page_layout_preview"></div>
       </div>
     </div>
@@ -113,7 +114,7 @@
       <br />
       <div class="stripes_pdf stripes_sample_box"></div>
       <b>PDF Dimensions</b><br />
-      Source: <span id="pdf_source_dimensions"></span><br />
+      <span id="pdf_source_label">Source:</span> <span id="pdf_source_dimensions"></span><br />
       On page: <span id="pdf_page_dimensions"></span><br />
       Scaling: <span id="pdf_scale_dimensions"></span><br />
       Offset:
@@ -122,6 +123,13 @@
       </div>
       <br />
       Rotated: <span id="pdf_page_rotation_info"></span><br />
+      <div id="trim_box_legend" style="display: none">
+        <br />
+        <div class="trim_sample_box stripes_sample_box"></div>
+        <b>Trimmed Page</b><br />
+        Finished size: <span id="trim_box_dimensions"></span><br />
+        Cut off: <span id="trim_box_waste"></span><br />
+      </div>
       <br />
       (<i>All dimensions are in Points</i>)
     </div>

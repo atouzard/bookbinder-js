@@ -39,6 +39,44 @@ export function renderInfoBox(book) {
  * Expects a data object describing the overall page layout info:
  *
  */
+const round = (n) => Math.round(n * 100) / 100;
+
+/**
+ * Draws the finished page inside the layout cell, so the asymmetry of the
+ * offsets can be read at a glance: the trim box sits hard against the spine,
+ * which is why there is more waste at the fore edge than at the binding.
+ *
+ * @param {object|null} autoFit - the result from Book.applyAutoFitPadding
+ * @param {[number, number]} cell - layout cell, in pt
+ * @param {number} scale - preview px per pt
+ */
+function renderTrimBoxPreview(autoFit, cell, scale) {
+  const box = document.getElementById('trim_box_layout_preview');
+  const legend = document.getElementById('trim_box_legend');
+  const trim = autoFit && autoFit.trim;
+
+  if (!trim) {
+    box.style.display = 'none';
+    legend.style.display = 'none';
+    return;
+  }
+
+  const [trimW, trimH] = trim;
+  box.style.display = 'block';
+  box.style.width = `${trimW * scale}px`;
+  box.style.height = `${trimH * scale}px`;
+  // Flush to the spine horizontally - a fold cannot be cut - and centred
+  // vertically, head and tail losing the same amount.
+  box.style.margin = `${((cell[1] - trimH) / 2) * scale}px 0px`;
+
+  legend.style.display = 'block';
+  document.getElementById('trim_box_dimensions').innerText =
+    `${ptToMm(trimW).toFixed(1)} x ${ptToMm(trimH).toFixed(1)} mm`;
+  document.getElementById('trim_box_waste').innerText =
+    `${ptToMm(cell[0] - trimW).toFixed(1)} mm at the fore edge, ` +
+    `${ptToMm((cell[1] - trimH) / 2).toFixed(1)} mm at head and tail`;
+}
+
 export function updatePageLayoutInfo(info) {
   document.getElementById('show_layout_info').style.display = 'flex';
   console.log('So much info from updatePageLayoutInfo: ', info);
@@ -71,9 +109,17 @@ export function updatePageLayoutInfo(info) {
 
   document.getElementById('page_grid_layout').innerText =
     `${info.dimensions.layout.rows} rows x ${info.dimensions.layout.cols} cols`;
-  document.getElementById('page_grid_dimensions').innerText = `${paperDims[0]}, ${paperDims[1]}`;
+  document.getElementById('page_grid_dimensions').innerText =
+    `${round(paperDims[0])}, ${round(paperDims[1])}`;
+  // With auto-fit on, the managed pages have been cropped to the measured ink
+  // box, so "Source" would be a lie: this is the content, not the page it came
+  // from. The orange box in the diagram is this rectangle.
+  const autoFit = info.autoFit;
+  document.getElementById('pdf_source_label').innerText = autoFit ? 'Measured ink:' : 'Source:';
   document.getElementById('pdf_source_dimensions').innerText =
-    `${info.cropbox.width}, ${info.cropbox.height}`;
+    `${round(info.cropbox.width)}, ${round(info.cropbox.height)}`;
+
+  renderTrimBoxPreview(autoFit, paperDims, scale);
   document.getElementById('pdf_page_dimensions').innerText =
     `${pdfDims[0].toFixed(2)}, ${pdfDims[1].toFixed(2)}`;
   document.getElementById('pdf_offset_dimensions').innerHTML = `
