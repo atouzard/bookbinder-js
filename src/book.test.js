@@ -13,6 +13,7 @@ describe('Book model', () => {
     inputpdf: null,
     duplex: true,
     duplexrotate: false,
+    rtl: false,
     papersize: [595, 842],
     flyleafs: 1,
     spineoffset: false,
