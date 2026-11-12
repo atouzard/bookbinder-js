@@ -445,6 +445,10 @@ export function renderFormFromSettings(configuration) {
     document.querySelector("input[name='rotate_page']").checked = true;
   }
 
+  if (configuration.rightToLeft) {
+    document.querySelector("input[name='right_to_left']").checked = true;
+  }
+
   if (configuration.cropMarks) {
     document.querySelector("input[name='cropmarks']").checked = true;
   }

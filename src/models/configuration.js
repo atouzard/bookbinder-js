@@ -88,6 +88,7 @@ export const schema = z.object({
   pageRange,
   sourceRotation,
   rotatePage: urlSafe(coercedBoolean).default(false),
+  rightToLeft: urlSafe(coercedBoolean).default(false),
   paperSize,
   paperSizeUnit,
   printerType,

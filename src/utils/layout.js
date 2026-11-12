@@ -1,4 +1,33 @@
 /**
+ * For a right-to-left book, the two pages of every spread swap sides while the fold stays put.
+ * Returns the permutation to apply to one side of a sheet's page list (row-major over the grid):
+ * result[i] is the index of the page that must be drawn in cell i.
+ * Upright rows pair cells horizontally; quarter-turned rows pair them vertically.
+ *
+ * @param {number[][]} rotations - the layout's rotation grid
+ * @returns {number[]}
+ */
+export function rtlCellOrder(rotations) {
+  const cols = rotations[0].length;
+  const order = rotations.flatMap((row, i) => row.map((_, j) => i * cols + j));
+  rotations.forEach((row, i) => {
+    row.forEach((rot, j) => {
+      const vertical = rot === 90 || rot === -90;
+      if (vertical) {
+        if (i % 2 === 0 && i + 1 < rotations.length) {
+          order[i * cols + j] = (i + 1) * cols + j;
+          order[(i + 1) * cols + j] = i * cols + j;
+        }
+      } else if (j % 2 === 0 && j + 1 < cols) {
+        order[i * cols + j] = i * cols + j + 1;
+        order[i * cols + j + 1] = i * cols + j;
+      }
+    });
+  });
+  return order;
+}
+
+/**
  * When considering page size, don't forget to take into account
  *  this.padding_pt's ['top','bottom','binding','fore_edge'] values
  *

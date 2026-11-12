@@ -16,7 +16,7 @@ import {
   drawSigOrderMark,
   drawSewingMarks,
 } from './utils/drawing.js';
-import { calculateDimensions, calculateLayout } from './utils/layout.js';
+import { calculateDimensions, calculateLayout, rtlCellOrder } from './utils/layout.js';
 import { computeAutoFitPadding, layoutCellSize, suggestSheets } from './utils/autoFit.js';
 import { detectInkBounds } from './utils/inkBounds.js';
 import { parsePageRange } from './utils/pageRange.js';
@@ -95,6 +95,8 @@ export class Book {
     /** @type {boolean} */
     this.duplex = configuration.printerType === 'duplex';
     this.duplexrotate = configuration.rotatePage;
+    /** @type {boolean} Right-to-left reading: pages of each spread are mirrored */
+    this.rtl = configuration.rightToLeft;
     this.paper_rotation_90 = configuration.paperRotation90;
     /** @type {[number, number]} */
     this.papersize = PAGE_SIZES[configuration.paperSize];
@@ -652,9 +654,22 @@ export class Book {
    * @return reference to the new PDF created
    */
   async writepages(config) {
-    const pagelist = config.pageList;
     const back = config.back;
     const maxSigCount = config.maxSigCount;
+    let pagelist = config.pageList;
+    if (this.rtl) {
+      // Mirror each spread: same fold, pages swapped left <-> right.
+      const order = rtlCellOrder(this.page_layout.rotations);
+      const mirrored = [];
+      for (let s = 0; s < pagelist.length; s += order.length) {
+        const block = pagelist.slice(s, s + order.length);
+        order.forEach((src, i) => {
+          if (block.length === order.length) mirrored.push(block[src]);
+          else if (i < block.length) mirrored.push(block[i]);
+        });
+      }
+      pagelist = mirrored;
+    }
     const filteredList = [];
     const blankIndices = [];
     pagelist.forEach((pageInfo, i) => {
@@ -679,7 +694,7 @@ export class Book {
       this.alt_layout && !back ? calculateLayout(this) : calculateLayout(this, true);
 
     while (block_end <= pagelist.length) {
-      const sigDetails = config.pageList.slice(block_start, block_end);
+      const sigDetails = pagelist.slice(block_start, block_end);
       this.draw_block_onto_page({
         outPDF: outPDF,
         embeddedPages: embeddedPages,

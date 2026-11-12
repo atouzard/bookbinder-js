@@ -28,6 +28,7 @@ const fromFormToConfiguration = (form) =>
     paperSizeUnit: form.get('paper_size_unit'),
     printerType: form.get('printer_type'),
     rotatePage: form.has('rotate_page'),
+    rightToLeft: form.has('right_to_left'),
     paperRotation90: form.has('paper_rotation_90'),
     pageLayout: form.get('pagelayout'),
     cropMarks: form.has('cropmarks'),
